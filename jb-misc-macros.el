@@ -39,28 +39,24 @@
 
 ;;; Commentary: 
 ;;
-;; Bitcoin donations gratefully accepted: 
+;; Bitcoin donations gratefully accepted: 1AoGev8FTwVVspNZxHuu8LMztAwxdzRndZ
 ;;
-;; How to create documentation and distribute package:
+;; This library contains miscellaneous macros that I use in my projects, or that
+;; I thought might be useful.
+
+;;; Examples:
 ;;
-;;     1) Remember to add ;;;###autoload magic cookies if possible
-;;     2) Generate a bitcoin address for donations with shell command: bitcoin getaccountaddress jb-misc-macros
-;;        and place address after "Commentary:" above.
-;;     3) Use org-readme-top-header-to-readme to create initial Readme.org file.
-;;     4) Use M-x auto-document to insert descriptions of commands and documents
-;;     5) Create documentation in the Readme.org file:
-;;        - Use org-mode features for structuring the data.
-;;        - Divide the commands into different categories and create headings
-;;          containing org lists of the commands in each category.
-;;        - Create headings with any other extra information if needed (e.g. customization).
-;;     6) In this buffer use org-readme-to-commentary to fill Commentary section with
-;;        documentation from Readme.org file.
-;;     7) Make any necessary adjustments to the documentation in this file (e.g. remove the installation
-;;        and customization sections added in previous step since these should already be present).
-;;     8) Use org-readme-marmalade-post and org-readme-convert-to-emacswiki to post
-;;        the library on Marmalade and EmacsWiki respectively.
-;; 
-;;;;
+;; Prompt the user for a free keybinding:
+;; (untilnext (read-key-sequence "Enter a key: ")
+;;            (read-key-sequence "That key is already bound to a command. Try again: ")
+;;            (lambda (x) (not (key-binding x))))
+
+;; Keep a track of the number of prompts
+;; (untilnext (read-number "What is 1+1? Attempt 1: ")
+;;            (prog1 (read-number  (concat "Wrong! Try again. Attempt " (number-to-string num) ": "))
+;;              (setq num (1+ num)))
+;;            (lambda (x) (= x 2))
+;;            (num 1))
 
 
 ;;; Installation:
@@ -74,16 +70,6 @@
 ;; Add the following to your ~/.emacs startup file.
 ;;
 ;; (require 'jb-misc-macros)
-
-;;; Customize:
-;;
-;; To automatically insert descriptions of customizable variables defined in this buffer
-;; place point at the beginning of the next line and do: M-x auto-document
-
-;;
-;; All of the above can customized by:
-;;      M-x customize-group RET jb-misc-macros RET
-;;
 
 ;;; Change log:
 ;;	
@@ -106,9 +92,13 @@
 
 ;;; Code:
 ;; put macros in gist on github, or in their own package (if there are many of them)
-(defmacro untilnext (initform nextform &optional test &rest bindings)
-  "Do init1, then test, if test passes then return init1, otherwise do init2 until test passes.
-Return the results of either init1 or init2."
+(defmacro untilnext (initform nextform &optional testfunc &rest bindings)
+  "Evaluate INITFORM followed by NEXTFORM repeatedly. Stop when one of them returns non-nil, and returning that value.
+If TESTFUNC is supplied it should be a function that takes a single argument (the results of evaluating INITFORM or NEXTFORM),
+and will be used as the stopping criterion. In this case evaluation will stop when TESTFUNC returns non-nil, but the
+return value of the macro will still be the return value of INITFORM or NEXTFORM.
+If BINDINGS are supplied then these will be placed in a let form wrapping the code, thus allowing for some persistence of state
+between successive evaluations of NEXTFORM."
   (let ((sym1 (gensym))
         (retval (gensym)))
     `(let* (,@bindings ,retval
