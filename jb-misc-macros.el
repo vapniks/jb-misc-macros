@@ -84,7 +84,6 @@
 
 ;;; TODO
 ;;
-;; Macro that works like apply-partially but allowing partial application of args in any position.
 ;;
 
 ;;; Require
@@ -96,7 +95,9 @@
 (defsubst lastcar (lst)
   (car (last lst)))
 
-(defun apply-partially* (fun &rest args)
+;; Note: the cut macro in combinators.el does a similar job to the following function,
+;; but cut doesn't allow reordering the args.
+(defun jb-apply-partially (fun &rest args)
   "Return a function that is a partial application of FUN to ARGS.
 ARGS is a list of the first N arguments to pass to FUN.
 The result is a new function which does the same as FUN, except that
@@ -105,7 +106,7 @@ was called.
 ARGS may also contain the symbols 'first 'second 'third' 'fourth 'fifth
 'sixth 'seventh 'eigth 'ninth & 'tenth, which will be replaced by the
 corresponding args in the call to the new function.
-For example (apply-partially* '/ 'first 3) returns a function which divides
+For example (jb-apply-partially '/ 'first 3) returns a function which divides
 by three. If we set this to d3 then (d3 6) will return 2, and (d3 6 2) will return 1."
   (let* (used
          (positions '(first second third four fifth sixth seventh eight ninth tenth))
