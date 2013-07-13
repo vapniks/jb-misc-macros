@@ -89,11 +89,19 @@
 ;;; Require
 (require 'macro-utils)
 (require 'anaphora)
+(require 'combinators)
 
 ;;; Code:
 
 (defsubst lastcar (lst)
   (car (last lst)))
+
+(defun jb-get-matching-buffers (regex)
+  "Return list of buffers with names matching REGEX."
+  (loop for buf in (buffer-list)
+        for name = (buffer-name buf)
+        if (string-match regex name)
+        collect buf))
 
 ;; Note: the cut macro in combinators.el does a similar job to the following function,
 ;; but cut doesn't allow reordering the args.
@@ -131,16 +139,15 @@ return value of the macro will still be the return value of INITFORM or NEXTFORM
 If BINDINGS are supplied then these will be placed in a let form wrapping the code, thus allowing for some persistence of state
 between successive evaluations of NEXTFORM."
   (once-only (initform)
-             (let ((retval (gensym)))
-               `(let* (,@bindings ,retval)
-                  (or (and ,testfunc
-                           (or (and (funcall ,testfunc ,initform) ,initform)
-                               (while (not (funcall ,testfunc (setq ,retval ,nextform))))
-                               ,retval))
-                      ,initform
-                      (and 
-                       (while (not (setq ,retval ,nextform)))
-                       ,retval))))))
+    (let ((retval (gensym)))
+      `(let* (,@bindings ,retval)
+         (or (and ,testfunc
+                  (or (and (funcall ,testfunc ,initform) ,initform)
+                      (while (not (funcall ,testfunc (setq ,retval ,nextform))))
+                      ,retval))
+             ,initform
+             (while (not (setq ,retval ,nextform)))
+             ,retval)))))
 
 ;; This might be better as an inline function.
 (defmacro jb-list-subset (indices list)
