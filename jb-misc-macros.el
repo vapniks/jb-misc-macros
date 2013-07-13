@@ -6,7 +6,7 @@
 ;; Maintainer: Joe Bloggs <vapniks@yahoo.com>
 ;; Copyleft (Ↄ) 2013, Joe Bloggs, all rites reversed.
 ;; Created: 2013-06-05 01:38:24
-;; Version: 0.1
+;; Version: 0.2
 ;; Last-Updated: 2013-06-05 01:38:24
 ;;           By: Joe Bloggs
 ;; URL: https://github.com/vapniks/jb-misc-macros
@@ -137,7 +137,8 @@ If TESTFUNC is supplied it should be a function that takes a single argument (th
 and will be used as the stopping criterion. In this case evaluation will stop when TESTFUNC returns non-nil, but the
 return value of the macro will still be the return value of INITFORM or NEXTFORM.
 If BINDINGS are supplied then these will be placed in a let form wrapping the code, thus allowing for some persistence of state
-between successive evaluations of NEXTFORM."
+between successive evaluations of NEXTFORM.
+Note: you can set INITFORM to nil if you only want to evaluate a single form repeatedly."
   (once-only (initform)
     (let ((retval (gensym)))
       `(let* (,@bindings ,retval)
