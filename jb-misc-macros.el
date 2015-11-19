@@ -12,7 +12,7 @@
 ;; URL: https://github.com/vapniks/jb-misc-macros
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 24.3.1
-;; Package-Requires: ((macro-utils "1.0") (anaphora) (combinators))
+;; Package-Requires: ((macro-utils "1.0") (anaphora "20140728.1536") (combinators "0.0.1"))
 ;;
 ;; Features that might be required by this library:
 ;;
