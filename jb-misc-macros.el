@@ -88,7 +88,6 @@
 
 ;;; Require
 (require 'macro-utils)
-(require 'anaphora)
 (require 'combinators)
 
 ;;; Code:
@@ -119,24 +118,34 @@ The result is a new function which does the same as FUN, except that
 the first N arguments are fixed at the values with which this function
 was called.
 ARGS may also contain the symbols 'first 'second 'third' 'fourth 'fifth
-'sixth 'seventh 'eigth 'ninth & 'tenth, which will be replaced by the
-corresponding args in the call to the new function.
-For example (jb-apply-partially '/ 'first 3) returns a function which divides
-by three. If we set this to d3 then (d3 6) will return 2, and (d3 6 2) will return 1."
-  (let* (used
-         (positions '(first second third four fifth sixth seventh eight ninth tenth))
-         (fixedargs
-          (mapcar (lambda (x) (eval `(acase x
-                                       (,positions
-                                        (push it used)
-                                        (list it 'args))
-                                       (t x)))) args))
-         (maxpos (if used (1+ (position (lastcar used) positions)) 0))
-         (otherargs (if used
-                        (mapcar (lambda (x) (list x 'args))
-                                (set-difference (subseq positions 0 maxpos) used)))))
-    `(closure (t) (&rest args)
-              (apply ',fun ,@fixedargs ,@otherargs (subseq args ,maxpos)))))
+'sixth 'seventh 'eighth 'ninth & 'tenth, which will be replaced by the
+corresponding args in the call to the new function. When the function is called
+with more args than specified by ARGS the remaining args will be appended to
+the specified ones.
+For example (jb-apply-partially '/ 'first 3 'third) returns a function which divides
+its first argument by three, then divides the result by its third argument, then
+divides by its second argument. If there any more than 3 arguments the result will be
+further divided by these remaining arguments."
+  (flet ((cl (x) (intern-soft (concat "cl-" (symbol-name x)))))
+    (let* (used
+           (positions '(first second third fourth fifth sixth seventh eighth ninth tenth))
+           (fixedargs
+            (mapcar (lambda (x)
+		      (let ((it x))
+			(cl-case it
+			  ((first second third fourth fifth sixth seventh eighth ninth tenth)
+			   (push it used)
+			   (list (cl it) 'args))
+			  (t x))))
+		    args))
+           (maxpos (if used
+		       (1+ (apply 'max (mapcar (lambda (x) (cl-position x positions))
+					       used)))
+		     0))
+           (otherargs (if used
+                          (mapcar (lambda (x) (list (cl x) 'args))
+                                  (cl-set-difference (cl-subseq positions 0 maxpos) used)))))
+      `(lambda (&rest args) (apply ',fun ,@fixedargs ,@otherargs (cl-subseq args ,maxpos))))))
 
 (defmacro jb-untilnext (initform nextform &optional testfunc &rest bindings)
   "Evaluate INITFORM followed by NEXTFORM repeatedly. Stop when one of them returns non-nil, and returning that value.
