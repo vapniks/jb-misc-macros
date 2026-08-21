@@ -7,7 +7,7 @@
 ;; Copyleft (Ↄ) 2013, Joe Bloggs, all rites reversed.
 ;; Created: 2013-06-05 01:38:24
 ;; Version: 0.4
-;; Last-Updated: 2013-09-14 00:28:24
+;; Last-Updated: 2026-08-21 20:59:00
 ;;           By: Joe Bloggs
 ;; URL: https://github.com/vapniks/jb-misc-macros
 ;; Keywords: lisp
@@ -41,22 +41,49 @@
 ;;
 ;; Bitcoin donations gratefully accepted: 1AoGev8FTwVVspNZxHuu8LMztAwxdzRndZ
 ;;
-;; This library contains miscellaneous macros that I use in my projects, or that
-;; I thought might be useful.
+;; This library contains miscellaneous functions & macros that I use in my projects,
+;; or that I thought might be useful.
+
+;;; Functions & Macros:
+;;
+;; Below is a list of functions and macros defined in this file:
+;;
+;; `lastcar' : Return the last element of a list
+;; `jb-get-matching-name-buffers' : Return list of buffers with names matching REGEX
+;; `jb-get-matching-mode-buffers' : Return list of buffers with mode names matching REGEX
+;; `jb-apply-partially' : Return a function that is a partial application of FUN to ARGS
+;; `jb-untilnext' : Evaluate INITFORM followed by NEXTFORM repeatedly. Stop when one of them returns non-nil, and returning that value.
+;; `jb-list-subset' : Return elements of LIST corresponding to INDICES.
+;; `jb-number-list' : Return a sequential list of numbers from START to END.
+;; `jb-read-key-menu' : Prompt the user for a key and return the results of evaluating the corresponding form in the list FORMS.
+;; `build-symbol-and-value-bindings' : Return a list of ‘let’ binding pairs from ARG-SPECS, which binds variables to symbols & values of args.
+;;
 
 ;;; Examples:
 ;;
 ;; Prompt the user for a free keybinding:
-;; (untilnext (read-key-sequence "Enter a key: ")
+;; (jb-untilnext (read-key-sequence "Enter a key: ")
 ;;            (read-key-sequence "That key is already bound to a command. Try again: ")
 ;;            (lambda (x) (not (key-binding x))))
 
 ;; Keep a track of the number of prompts
-;; (untilnext (read-number "What is 1+1? Attempt 1: ")
+;; (jb-untilnext (read-number "What is 1+1? Attempt 1: ")
 ;;            (prog1 (read-number  (concat "Wrong! Try again. Attempt " (number-to-string num) ": "))
 ;;              (setq num (1+ num)))
 ;;            (lambda (x) (= x 2))
 ;;            (num 1))
+
+;;  `(let ,(build-symbol-and-value-bindings '((foo fsym fval) ('bar nil bval) (1 2 3)))
+;;    fsym)
+;; expands to:
+;; (let ((fsym 'foo)
+;;       (fval (if (boundp 'foo) foo nil))
+;;       (argsym2 'bar)
+;;       (argval2 (if (boundp 'bar) bar nil))
+;;       (argsym3 nil)
+;;       (argval3 '(1 2 3)))
+;;   fsym)"
+
 
 
 ;;; Installation:
@@ -237,7 +264,6 @@ The macro arguments will be evaluated once before expanding the macro."
 	     (setq ,retval (nth (cl-position key ,newkeys :test 'equal) ,forms)))))
        (if (symbolp ,retval) ,retval (eval ,retval)))))
 
-
 (defun build-symbol-and-value-bindings (arg-specs)
   "Return a list of `let' binding pairs from ARG-SPECS, which binds variables to symbols & values of args.
 
@@ -247,7 +273,7 @@ Each element of ARG-SPECS is either:
                              where N indicates position in ARG-SPECS (starting at 1)
   (FORM SYM-NAME)          - symbol bound to SYM-NAME, no value variable is bound
   (FORM nil VAL-NAME)      - value bound to VAL-NAME, no symbol variable is bound
-  (FORM SYM-NAME VAL-NAME) - symbol bound to SYM-NAME, and value bound to VAL-NAME 
+  (FORM SYM-NAME VAL-NAME) - symbol bound to SYM-NAME, and value bound to VAL-NAME
 
 FORM may be a quoted or unquoted symbol, a quoted or unquoted list, a number, a string, or any other expression.
 SYM-NAME and VAL-NAME are symbols or nil. nil means omit that binding.
@@ -264,7 +290,7 @@ expands to:
       (argsym2 'bar)
       (argval2 (if (boundp 'bar) bar nil))
       (argsym3 nil)
-      (argval3 '(1 2 3))) 
+      (argval3 '(1 2 3)))
   fsym)"
   (cl-flet ((bindpair (s v) (list (list sname s) (list vname v)))
 	    (bindsym (s) (list (list sname s)))

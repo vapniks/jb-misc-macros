@@ -25,6 +25,19 @@ Bitcoin donations gratefully accepted: 1AoGev8FTwVVspNZxHuu8LMztAwxdzRndZ
 
 This library contains miscellaneous macros that I use in my projects, or that I thought might be useful.
 
+* Functions & Macros:
+Below is a list of functions and macros defined in this file:
+
+ - `lastcar' : Return the last element of a list
+ - `jb-get-matching-name-buffers' : Return list of buffers with names matching REGEX
+ - `jb-get-matching-mode-buffers' : Return list of buffers with mode names matching REGEX
+ - `jb-apply-partially' : Return a function that is a partial application of FUN to ARGS
+ - `jb-untilnext' : Evaluate INITFORM followed by NEXTFORM repeatedly. Stop when one of them returns non-nil, and returning that value.
+ - `jb-list-subset' : Return elements of LIST corresponding to INDICES.
+ - `jb-number-list' : Return a sequential list of numbers from START to END.
+ - `jb-read-key-menu' : Prompt the user for a key and return the results of evaluating the corresponding form in the list FORMS.
+ - `build-symbol-and-value-bindings' : Return a list of ‘let’ binding pairs from ARG-SPECS, which binds variables to symbols & values of args.
+
 * Examples
 Prompt the user for a free keybinding:
 #+BEGIN_SRC emacs-lisp
@@ -40,9 +53,22 @@ Prompt the user for a free keybinding:
             (lambda (x) (= x 2))
             (num 1))
 #+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+ `(let ,(build-symbol-and-value-bindings '((foo fsym fval) ('bar nil bval) (1 2 3)))
+   fsym)
+#+END_SRC
+expands to:
+(let ((fsym 'foo)
+      (fval (if (boundp 'foo) foo nil))
+      (argsym2 'bar)
+      (argval2 (if (boundp 'bar) bar nil))
+      (argsym3 nil)
+      (argval3 '(1 2 3)))
+  fsym)"
+
+
 * Installation
 
- - If you have [[http://www.marmalade-repo.org/][marmalade-repo.org]], this jb-misc-macros is part of the emacs packages you can install.  
-   Just type M-x package-install jb-misc-macros marmalade 
- - Otherwise download the library from here Lisp:jb-misc-macros, and put it in a directory in the emacs load path, like ~/.emacs.d
+ - Download the library, and put it in a directory in the emacs load path, like ~/.emacs.d
  - Add (require 'jb-misc-macros) in your ~/.emacs file
