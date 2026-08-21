@@ -12,11 +12,11 @@
 ;; URL: https://github.com/vapniks/jb-misc-macros
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 24.3.1
-;; Package-Requires: ((macro-utils "1.0") (anaphora "20140728.1536") (combinators "0.0.1"))
+;; Package-Requires: ((cl-lib "1.0"))
 ;;
 ;; Features that might be required by this library:
 ;;
-;; macro-utils.el
+;; cl-lib 
 ;;
 
 ;;; This file is NOT part of GNU Emacs
@@ -87,8 +87,8 @@
 ;;
 
 ;;; Require
-(require 'macro-utils)
-(require 'combinators)
+(require 'cl-lib)
+;;(require 'combinators)
 
 ;;; Code:
 
@@ -97,17 +97,17 @@
 
 (defun jb-get-matching-name-buffers (regex)
   "Return list of buffers with names matching REGEX."
-  (loop for buf in (buffer-list)
-        for name = (buffer-name buf)
-        if (string-match regex name)
-        collect buf))
+  (cl-loop for buf in (buffer-list)
+           for name = (buffer-name buf)
+           if (string-match regex name)
+           collect buf))
 
 (defun jb-get-matching-mode-buffers (regex)
   "Return list of buffers with mode names matching REGEX."
-  (loop for buf in (buffer-list)
-        for modename = (symbol-name (with-current-buffer buf major-mode))
-        if (string-match regex modename)
-        collect buf))
+  (cl-loop for buf in (buffer-list)
+           for modename = (symbol-name (with-current-buffer buf major-mode))
+           if (string-match regex modename)
+           collect buf))
 
 ;; Note: the cut macro in combinators.el does a similar job to the following function,
 ;; but cut doesn't allow reordering the args.
@@ -126,11 +126,11 @@ For example (jb-apply-partially '/ 'first 3 'third) returns a function which div
 its first argument by three, then divides the result by its third argument, then
 divides by its second argument. If there any more than 3 arguments the result will be
 further divided by these remaining arguments."
-  (flet ((cl (x) (intern-soft (concat "cl-" (symbol-name x)))))
+  (cl-flet ((cl (x) (intern-soft (concat "cl-" (symbol-name x)))))
     (let* (used
-           (positions '(first second third fourth fifth sixth seventh eighth ninth tenth))
-           (fixedargs
-            (mapcar (lambda (x)
+	   (positions '(first second third fourth fifth sixth seventh eighth ninth tenth))
+	   (fixedargs
+	    (mapcar (lambda (x)
 		      (let ((it x))
 			(cl-case it
 			  ((first second third fourth fifth sixth seventh eighth ninth tenth)
@@ -138,13 +138,13 @@ further divided by these remaining arguments."
 			   (list (cl it) 'args))
 			  (t x))))
 		    args))
-           (maxpos (if used
+	   (maxpos (if used
 		       (1+ (apply 'max (mapcar (lambda (x) (cl-position x positions))
 					       used)))
 		     0))
-           (otherargs (if used
-                          (mapcar (lambda (x) (list (cl x) 'args))
-                                  (cl-set-difference (cl-subseq positions 0 maxpos) used)))))
+	   (otherargs (if used
+			  (mapcar (lambda (x) (list (cl x) 'args))
+				  (cl-set-difference (cl-subseq positions 0 maxpos) used)))))
       `(lambda (&rest args) (apply ',fun ,@fixedargs ,@otherargs (cl-subseq args ,maxpos))))))
 
 (defmacro jb-untilnext (initform nextform &optional testfunc &rest bindings)
@@ -155,16 +155,16 @@ return value of the macro will still be the return value of INITFORM or NEXTFORM
 If BINDINGS are supplied then these will be placed in a let form wrapping the code, thus allowing for some persistence of state
 between successive evaluations of NEXTFORM.
 Note: you can set INITFORM to nil if you only want to evaluate a single form repeatedly."
-  (once-only (initform)
+  (cl-once-only (initform)
     (let ((retval (gensym)))
       `(let* (,@bindings ,retval)
-         (or (and ,testfunc
-                  (or (and ,initform (funcall ,testfunc ,initform) ,initform)
-                      (while (not (funcall ,testfunc (setq ,retval ,nextform))))
-                      ,retval))
-             ,initform
-             (while (not (setq ,retval ,nextform)))
-             ,retval)))))
+	 (or (and ,testfunc
+		  (or (and ,initform (funcall ,testfunc ,initform) ,initform)
+		      (while (not (funcall ,testfunc (setq ,retval ,nextform))))
+		      ,retval))
+	     ,initform
+	     (while (not (setq ,retval ,nextform)))
+	     ,retval)))))
 
 ;; This might be better as an inline function.
 (defmacro jb-list-subset (indices list)
@@ -175,9 +175,9 @@ Note: you can set INITFORM to nil if you only want to evaluate a single form rep
   "Return a sequential list of numbers from START to END.
 If END is nil and LENGTH is provided then return a list from START to (1- (+ START LENGTH))."
   (if end
-      (loop for i from start to end collect i)
-    (assert length)
-    (loop for i from start to (1- (+ start length)) collect i)))
+      (cl-loop for i from start to end collect i)
+    (cl-assert length)
+    (cl-loop for i from start to (1- (+ start length)) collect i)))
 
 ;; This might be better as a function but I wanted to practice writing macros.
 ;; Also this way we can use gensyms to minimize the number of variables bound in the let
@@ -204,38 +204,38 @@ Where K1-KN are key descriptions of the keys in KEYS, and PROMPT1-PROMPTN are th
 list PROMPTS.
 
 The macro arguments will be evaluated once before expanding the macro."
-  (with-gensyms (newprompts prompt prompts2 retval newkeys keystrs maxlen)
-		`(let* ((,prompts2 ,prompts)
-			(,newkeys (let* ((origkeys ,keys)
-					 (uniqkeys (remove 'nil origkeys))
-					 (nextkey 48))
-				    (mapcar (lambda (key)
-					      (or key (progn
-							(setq nextkey (1+ nextkey))
-							(while (member (char-to-string nextkey) uniqkeys)
-							  (setq nextkey (1+ nextkey)))
-							(char-to-string nextkey))))
-					    (nconc origkeys
-						   (make-list (max 0 (- (length ,prompts2) (length origkeys))) nil)))))
-			(,keystrs (mapcar 'key-description ,newkeys))
-			(,maxlen (loop for keystr in ,keystrs maximize (length keystr)))
-			(,newprompts (mapcar* (lambda (k p)
-						(let ((len (- ,maxlen (length k))))
-						  (concat k ") " (make-string len ? ) p)))
-					      ,keystrs ,prompts2))
-			(,prompt (concat (and ,(eval startstr) (concat ,(eval startstr) "\n"))
-					 (mapconcat 'identity ,newprompts "\n")
-					 "\nC-g) Quit"
-					 (and ,(eval endstr) (concat "\n" ,(eval endstr)))))
-			(,retval 'again))
-		   (while (eq ,retval 'again)
-		     (let (key)
-		       (while (not (or (member key ,newkeys) (equal key "")))
-			 (setq key (read-key-sequence ,prompt nil t nil t)))
-		       (if (equal key "")
-			   (keyboard-quit)
-			 (setq ,retval (nth (position key ,newkeys :test 'equal) ,forms)))))
-		   (if (symbolp ,retval) ,retval (eval ,retval)))))
+  (cl-with-gensyms (newprompts prompt prompts2 retval newkeys keystrs maxlen)
+    `(let* ((,prompts2 ,prompts)
+	    (,newkeys (let* ((origkeys ,keys)
+			     (uniqkeys (remove 'nil origkeys))
+			     (nextkey 48))
+			(mapcar (lambda (key)
+				  (or key (progn
+					    (setq nextkey (1+ nextkey))
+					    (while (member (char-to-string nextkey) uniqkeys)
+					      (setq nextkey (1+ nextkey)))
+					    (char-to-string nextkey))))
+				(nconc origkeys
+				       (make-list (max 0 (- (length ,prompts2) (length origkeys))) nil)))))
+	    (,keystrs (mapcar 'key-description ,newkeys))
+	    (,maxlen (cl-loop for keystr in ,keystrs maximize (length keystr)))
+	    (,newprompts (mapcar* (lambda (k p)
+				    (let ((len (- ,maxlen (length k))))
+				      (concat k ") " (make-string len ? ) p)))
+				  ,keystrs ,prompts2))
+	    (,prompt (concat (and ,(eval startstr) (concat ,(eval startstr) "\n"))
+			     (mapconcat 'identity ,newprompts "\n")
+			     "\nC-g) Quit"
+			     (and ,(eval endstr) (concat "\n" ,(eval endstr)))))
+	    (,retval 'again))
+       (while (eq ,retval 'again)
+	 (let (key)
+	   (while (not (or (member key ,newkeys) (equal key "")))
+	     (setq key (read-key-sequence ,prompt nil t nil t)))
+	   (if (equal key "")
+	       (keyboard-quit)
+	     (setq ,retval (nth (cl-position key ,newkeys :test 'equal) ,forms)))))
+       (if (symbolp ,retval) ,retval (eval ,retval)))))
 
 (provide 'jb-misc-macros)
 
