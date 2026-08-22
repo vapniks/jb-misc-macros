@@ -75,7 +75,7 @@
 ;;            (lambda (x) (= x 2))
 ;;            (num 1))
 
-;;  `(let ,(build-symbol-and-value-bindings '((foo fsym fval) ('bar nil bval) (1 2 3)))
+;;  (with-symbol-and-value-bindings '((foo fsym fval) ('bar nil bval) (1 2 3)))
 ;;    fsym)
 ;; expands to:
 ;; (let ((fsym 'foo)
