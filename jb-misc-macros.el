@@ -358,7 +358,7 @@ expands to:
 (defmacro with-symbol-and-value-bindings (arg-specs &rest body)
   "Create symbol and value bindings according to ARG-SPECS, then evaluate BODY.
 See `build-symbol-and-value-bindings' for more info."
-  `(let (build-symbol-and-value-bindings arg-specs)
+  `(let ,(build-symbol-and-value-bindings arg-specs)
      ,@body))
 
 (defmacro set-symbol-and-value-bindings (&rest arg-specs)
