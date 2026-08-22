@@ -271,9 +271,11 @@ The macro arguments will be evaluated once before expanding the macro."
 
 Each element of ARG-SPECS is either:
 
-  FORM                     - symbol bound to argsymN, and value bound to argvalN
+  ATOM                     - symbol bound to argsymN, and value of ATOM bound to argvalN
                              where N indicates position in ARG-SPECS (starting at 1)
-  (FORM SYM-NAME)          - symbol bound to SYM-NAME, no value variable is bound
+  (FORM)                   - same as previous case, but FORM may be a list or cons cell.
+  (FORM SYM-NAME nil)      - symbol bound to SYM-NAME, no value variable is bound
+  (FORM SYM-NAME)          - same as previous case
   (FORM nil VAL-NAME)      - value bound to VAL-NAME, no symbol variable is bound
   (FORM SYM-NAME VAL-NAME) - symbol bound to SYM-NAME, and value bound to VAL-NAME
   :flat                    - indicate that the bindings should be returned as a flat list rather than
@@ -285,7 +287,7 @@ Unless FORM is a quoted or unquoted symbol, its corresponding symbol variable wi
 
 Example:
  `(let ,(build-symbol-and-value-bindings '((foo fsym fval) ('bar nil bval) (1 2 3)))
-   fsym)
+   ...)
 
 expands to:
 
@@ -295,64 +297,42 @@ expands to:
       (argval2 (if (boundp 'bar) bar nil))
       (argsym3 nil)
       (argval3 '(1 2 3)))
-  fsym)"
-  (let ((flatp (member :flat arg-specs))
+  ...)"
+  (let ((joinfn (if (member :flat arg-specs) 'append 'list))
 	(arg-specs (remove :flat arg-specs)))
-    (cl-flet ((bindpair (s v) (if flatp (list sname s vname v)
-				(list (list sname s) (list vname v))))
-	      (bindsym (s) (if flatp (list sname s)
-			     (list (list sname s))))
-	      (bindval (v) (if flatp (list vname v)
-			     (list (list vname v)))))
+    (cl-flet ((bindpair (s v) (funcall joinfn (list sname s) (list vname v)))
+	      (getsym (f) (pcase f
+			    ((pred symbolp) `',f)
+			    (`(quote ,(and (pred symbolp) s)) `',s)
+			    (_ nil)))
+	      (getval (f) (pcase f
+			    ((pred symbolp) `(if (boundp ',f) ,f nil))
+			    (`(quote ,(and (pred symbolp) s)) `(if (boundp ',s) ,s nil))
+			    (`(quote ,s) f)
+			    ((pred listp) `(quote ,f))
+			    (_ f))))
       (cl-loop for spec in arg-specs
 	       for i from 1
 	       for sname = (intern (format "argsym%d" i))
 	       for vname = (intern (format "argval%d" i))
-	       nconc
-	       (pcase spec
-		 ((pred symbolp) ;; 1. Unquoted symbol
-		  (bindpair `',spec `(if (boundp ',spec) ,spec nil)))
-		 (`(quote ,(and (pred symbolp) s)) ; 2. Quoted symbol: 'zzz  →  (quote zzz)
-		  (bindpair `',s `(if (boundp ',s) ,s nil)))
-		 (`(quote ,s) ;; 3. Quoted list: '(1 2 3)  →  (quote (1 2 3))
-		  (bindpair nil spec))
-		 ((and (pred listp)	;; 4. Unquoted list whose car is NOT a symbol → plain list form
-		       (guard (not (or (symbolp (car spec))
-				       (and (listp (car spec))
-					    (eq (caar spec) 'quote))))))
-		  (bindpair nil `(quote ,spec)))
-		 ((pred numberp) ;; 5. Number
-		  (bindpair nil spec))
-		 ((pred stringp) ;; 6. String
-		  (bindpair nil spec))
-		 (`(,form nil ,(and (pred symbolp) vname)) ;; 7. (FORM nil VAL-NAME) - no sym binding
-		  (bindval (pcase form
-			     ((pred symbolp)         `(if (boundp ',form) ,form nil))
-			     (`(quote ,(and (pred symbolp) s)) `(if (boundp ',s) ,s nil))
-			     (`(quote ,s)           form)
-			     ((pred listp)          `(quote ,form))
-			     ((pred numberp)        form)
-			     ((pred stringp)        form)
-			     (_                     form))))
-		 (`(,form ,(and (pred symbolp) sname) ,(and (pred symbolp) vname)) ;; 8. (FORM SYM-NAME VAL-NAME)
-		  (bindpair (pcase form
-			      ((pred symbolp)         `',form)
-			      (`(quote ,(and (pred symbolp) s)) `',s)
-			      (_ nil))
-			    (pcase form
-			      ((pred symbolp)        `(if (boundp ',form) ,form nil))
-			      (`(quote ,(and (pred symbolp) s)) `(if (boundp ',s) ,s nil))
-			      (`(quote ,s)           form)
-			      ((pred listp)          `(quote ,form))
-			      ((pred numberp)        form)
-			      ((pred stringp)        form)
-			      (_                     form))))
-		 (`(,form ,(and (pred symbolp) sname)) ;; 9. (FORM SYM-NAME)  — no val binding
-		  (bindsym (pcase form
-			     ((pred symbolp)         `',form)
-			     (`(quote ,(and (pred symbolp) s)) `',s)
-			     (_ nil))))
-		 (_ (bindpair nil spec))))))) ;; 10. Anything unrecognized → pass through, nil sym
+	       nconc (pcase spec
+		       ((pred symbolp) ;; 1. Unquoted symbol
+			(bindpair (getsym spec) (getval spec)))
+		       (`(quote ,(and (pred symbolp) s)) ; 2. Quoted symbol: 'zzz  →  (quote zzz)
+			(bindpair (getsym s) (getval s)))
+		       (`(quote ,s) ;; 3. Quoted list: '(1 2 3)  →  (quote (1 2 3))
+			(bindpair nil spec))
+		       (`(,form) ;; 4. Length 1: (FORM) — default numbered names
+			(bindpair (getsym form) (getval form)))
+		       (`(,form nil ,(and (pred symbolp) vname)) ;; 5. (FORM nil VAL-NAME) - no sym binding
+			(funcall joinfn (list vname (getval form))))
+		       ((or `(,form ,(and (pred symbolp) sname) nil) ;; 6. (FORM SYM-NAME nil) or (FORM SYM-NAME)  — no val binding
+			    `(,form  ,(and (pred symbolp) sname)))
+			(funcall joinfn (list sname (getsym form))))
+		       (`(,form ,(and (pred symbolp) sname) ,(and (pred symbolp) vname)) ;; 7. (FORM SYM-NAME VAL-NAME)
+			(bindpair (getsym form) (getval form)))
+		       ((pred listp) (bindpair nil `(quote ,spec))) ;; 8. other unquoted lists 
+		       (_ (bindpair nil spec))))))) ;; 9. Anything unrecognized → pass through, nil sym
 
 
 (defmacro with-symbol-and-value-bindings (arg-specs &rest body)
