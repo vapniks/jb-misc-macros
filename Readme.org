@@ -37,6 +37,8 @@ Below is a list of functions and macros defined in this file:
  - `jb-number-list' : Return a sequential list of numbers from START to END.
  - `jb-read-key-menu' : Prompt the user for a key and return the results of evaluating the corresponding form in the list FORMS.
  - `build-symbol-and-value-bindings' : Return a list of ‘let’ binding pairs from ARG-SPECS, which binds variables to symbols & values of args.
+ - `with-symbol-and-value-bindings' : Create symbol and value bindings according to ARG-SPECS, then evaluate BODY.
+ - `set-symbol-and-value-bindings' : Use ‘setq’ to set symbol and value variables according to ARG-SPECS.
 
 * Examples
 Prompt the user for a free keybinding:
