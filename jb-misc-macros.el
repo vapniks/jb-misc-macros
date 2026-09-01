@@ -184,6 +184,7 @@ return value of the macro will still be the return value of INITFORM or NEXTFORM
 If BINDINGS are supplied then these will be placed in a let form wrapping the code, thus allowing for some persistence of state
 between successive evaluations of NEXTFORM.
 Note: you can set INITFORM to nil if you only want to evaluate a single form repeatedly."
+  (declare (debug (form form &optional form &rest &or symbolp (symbolp &optional form))))
   (cl-once-only (initform)
     (let ((retval (gensym)))
       `(let* (,@bindings ,retval)
@@ -196,9 +197,9 @@ Note: you can set INITFORM to nil if you only want to evaluate a single form rep
 	     ,retval)))))
 
 ;; This might be better as an inline function.
-(defmacro jb-list-subset (indices list)
+(defun jb-list-subset (indices list)
   "Return elements of LIST corresponding to INDICES."
-  `(mapcar (lambda (i) (nth i ,list)) ,indices))
+  (mapcar (lambda (i) (nth i list)) indices))
 
 (defun jb-number-list (start end &optional length)
   "Return a sequential list of numbers from START to END.
@@ -233,6 +234,7 @@ Where K1-KN are key descriptions of the keys in KEYS, and PROMPT1-PROMPTN are th
 list PROMPTS.
 
 The macro arguments will be evaluated once before expanding the macro."
+  (declare (debug (form form &optional def-form def-form form)))
   (cl-with-gensyms (newprompts prompt prompts2 retval newkeys keystrs maxlen)
     `(let* ((,prompts2 ,prompts)
 	    (,newkeys (let* ((origkeys ,keys)
@@ -338,12 +340,15 @@ expands to:
 (defmacro with-symbol-and-value-bindings (arg-specs &rest body)
   "Create symbol and value bindings according to ARG-SPECS, then evaluate BODY.
 See `build-symbol-and-value-bindings' for more info."
+  (declare (debug (sexp body))
+           (indent 1))
   `(let ,(build-symbol-and-value-bindings arg-specs)
      ,@body))
 
 (defmacro set-symbol-and-value-bindings (&rest arg-specs)
   "Use `setq' to set symbol and value variables according to ARG-SPECS.
 See `build-symbol-and-value-bindings' for more info."
+  (declare (debug 0))
   `(setq ,@(build-symbol-and-value-bindings (cons :flat arg-specs))))
 
 
